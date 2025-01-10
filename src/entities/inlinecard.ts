@@ -1,19 +1,19 @@
-import { codeDeckExtension, sourceDeckExtension } from "src/conf/constants";
-import { Card } from "src/entities/card";
+import { codeDeckExtension, sourceDeckExtension } from 'src/conf/constants'
+import { Card } from 'src/entities/card'
 
 export class Inlinecard extends Card {
   constructor(
-    id = -1,
+    id: number,
     deckName: string,
     initialContent: string,
     fields: Record<string, string>,
     reversed: boolean,
     initialOffset: number,
     endOffset: number,
-    tags: string[] = [],
-    inserted = false,
+    tags: string[],
+    inserted: boolean,
     mediaNames: string[],
-    containsCode: boolean
+    containsCode: boolean,
   ) {
     super(
       id,
@@ -26,17 +26,15 @@ export class Inlinecard extends Card {
       tags,
       inserted,
       mediaNames,
-      containsCode
-    ); // ! CHANGE []
+      containsCode,
+    ) // ! CHANGE []
 
-    this.modelName = this.reversed
-      ? `Obsidian-basic-reversed`
-      : `Obsidian-basic`;
-    if (fields["Source"]) {
-      this.modelName += sourceDeckExtension;
+    this.modelName = this.reversed ? `Obsidian-basic-reversed` : `Obsidian-basic`
+    if (fields['Source']) {
+      this.modelName += sourceDeckExtension
     }
     if (containsCode) {
-      this.modelName += codeDeckExtension;
+      this.modelName += codeDeckExtension
     }
   }
 
@@ -46,32 +44,32 @@ export class Inlinecard extends Card {
       modelName: this.modelName,
       fields: this.fields,
       tags: this.tags,
-    };
-
-    if (update) {
-      card["id"] = this.id;
     }
 
-    return card;
+    if (update) {
+      card['id'] = this.id
+    }
+
+    return card
   }
 
   public getMedias(): object[] {
-    const medias: object[] = [];
+    const medias: object[] = []
     this.mediaBase64Encoded.forEach((data, index) => {
       medias.push({
         filename: this.mediaNames[index],
         data: data,
-      });
-    });
+      })
+    })
 
-    return medias;
+    return medias
   }
 
   public toString = (): string => {
-    return `Q: ${this.fields[0]} \nA: ${this.fields[1]} `;
-  };
+    return `Q: ${this.fields[0]} \nA: ${this.fields[1]} `
+  }
 
   public getIdFormat(): string {
-    return "^" + this.id.toString();
+    return '^' + this.id.toString()
   }
 }

@@ -1,158 +1,133 @@
-import { Anki } from "src/services/anki";
-import {
-  App,
-  FileSystemAdapter,
-  FrontMatterCache,
-  Notice,
-  TFile,
-} from "obsidian";
-import { Parser } from "src/services/parser";
-import { ISettings } from "src/conf/settings";
-import { Card } from "src/entities/card";
-import { arrayBufferToBase64 } from "src/utils";
-import { Regex } from "src/conf/regex";
-import { noticeTimeout } from "src/conf/constants";
-import { Inlinecard } from "src/entities/inlinecard";
+import { type App, FileSystemAdapter, type FrontMatterCache, Notice, type TFile } from 'obsidian'
+import { noticeTimeout } from 'src/conf/constants'
+import { Regex } from 'src/conf/regex'
+import type { ISettings } from 'src/conf/settings'
+import type { Card } from 'src/entities/card'
+import { Inlinecard } from 'src/entities/inlinecard'
+import { Anki } from 'src/services/anki'
+import { Parser } from 'src/services/parser'
+import { arrayBufferToBase64 } from 'src/utils'
 
 export class CardsService {
-  private app: App;
-  private settings: ISettings;
-  private regex: Regex;
-  private parser: Parser;
-  private anki: Anki;
+  private app: App
+  private settings: ISettings
+  private regex: Regex
+  private parser: Parser
+  private anki: Anki
 
-  private updateFile: boolean;
-  private totalOffset: number;
-  private file: string;
-  private notifications: string[];
+  private updateFile: boolean
+  private totalOffset: number
+  private file: string
+  private notifications: string[]
 
   constructor(app: App, settings: ISettings) {
-    this.app = app;
-    this.settings = settings;
-    this.regex = new Regex(this.settings);
-    this.parser = new Parser(this.regex, this.settings);
-    this.anki = new Anki();
+    this.app = app
+    this.settings = settings
+    this.regex = new Regex(this.settings)
+    this.parser = new Parser(this.regex, this.settings)
+    this.anki = new Anki()
   }
 
   public async execute(activeFile: TFile): Promise<string[]> {
-    this.regex.update(this.settings);
+    this.regex.update(this.settings)
 
     try {
-      await this.anki.ping();
+      await this.anki.ping()
     } catch (err) {
-      console.error(err);
-      return ["Error: Anki must be open with AnkiConnect installed."];
+      console.error(err)
+      return ['Error: Anki must be open with AnkiConnect installed.']
     }
 
     // Init for the execute phase
-    this.updateFile = false;
-    this.totalOffset = 0;
-    this.notifications = [];
-    const filePath = activeFile.basename;
-    const sourcePath = activeFile.path;
-    const fileCachedMetadata = this.app.metadataCache.getFileCache(activeFile)!;
-    const vaultName = this.app.vault.getName();
-    let globalTags: string[] = [];
+    this.updateFile = false
+    this.totalOffset = 0
+    this.notifications = []
+    const filePath = activeFile.basename
+    const sourcePath = activeFile.path
+    const fileCachedMetadata = this.app.metadataCache.getFileCache(activeFile)!
+    const vaultName = this.app.vault.getName()
+    let globalTags: string[] = []
 
     // Parse frontmatter
-    const frontmatter = fileCachedMetadata.frontmatter!;
-    let deckName = "";
-    if (frontmatter && frontmatter["cards-deck"]) {
-      deckName = frontmatter["cards-deck"];
-    } else if (this.settings.folderBasedDeck && activeFile.parent?.path !== "/") {
+    const frontmatter = fileCachedMetadata.frontmatter!
+    let deckName = ''
+    if (frontmatter?.['cards-deck']) {
+      deckName = frontmatter['cards-deck']
+    } else if (this.settings.folderBasedDeck && activeFile.parent?.path !== '/') {
       // If the current file is in the path "programming/java/strings.md" then the deck name is "programming::java"
-      deckName = activeFile.parent!.path.split("/").join("::");
+      deckName = activeFile.parent!.path.split('/').join('::')
     } else {
-      deckName = this.settings.deck;
+      deckName = this.settings.deck
     }
 
     try {
-      this.anki.storeCodeHighlightMedias();
-      await this.anki.createModels(
-        this.settings.sourceSupport,
-        this.settings.codeHighlightSupport
-      );
-      await this.anki.createDeck(deckName);
-      this.file = await this.app.vault.read(activeFile);
-      if (!this.file.endsWith("\n")) {
-        this.file += "\n";
+      this.anki.storeCodeHighlightMedias()
+      await this.anki.createModels(this.settings.sourceSupport, this.settings.codeHighlightSupport)
+      await this.anki.createDeck(deckName)
+      this.file = await this.app.vault.read(activeFile)
+      if (!this.file.endsWith('\n')) {
+        this.file += '\n'
       }
-      globalTags = this.parseGlobalTags(this.file);
+      globalTags = this.parseGlobalTags(this.file)
       // TODO with empty check that does not call ankiCards line
-      const ankiBlocks = this.parser.getAnkiIDsBlocks(this.file);
-      const ankiCards = ankiBlocks
-        ? await this.anki.getCards(this.getAnkiIDs(ankiBlocks))
-        : undefined;
+      const ankiBlocks = this.parser.getAnkiIDsBlocks(this.file)
+      const ankiCards = ankiBlocks ? await this.anki.getCards(this.getAnkiIDs(ankiBlocks)) : undefined
 
-      const cards: Card[] = this.parser.generateFlashcards(
-        this.file,
-        deckName,
-        vaultName,
-        filePath,
-        globalTags
-      );
-      const [cardsToCreate, cardsToUpdate, cardsNotInAnki] = this.filterByUpdate(
-        ankiCards,
-        cards
-      );
-      const cardIds: number[] = this.getCardsIds(ankiCards, cards);
-      const cardsToDelete: number[] = this.parser.getCardsToDelete(this.file);
+      const cards: Card[] = this.parser.generateFlashcards(this.file, deckName, vaultName, filePath, globalTags)
+      const [cardsToCreate, cardsToUpdate, cardsNotInAnki] = this.filterByUpdate(ankiCards, cards)
+      const cardIds: number[] = this.getCardsIds(ankiCards, cards)
+      const cardsToDelete: number[] = this.parser.getCardsToDelete(this.file)
 
-      console.info("Flashcards: Cards to create");
-      console.info(cardsToCreate);
-      console.info("Flashcards: Cards to update");
-      console.info(cardsToUpdate);
-      console.info("Flashcards: Cards to delete");
-      console.info(cardsToDelete);
+      console.info('Flashcards: Cards to create')
+      console.info(cardsToCreate)
+      console.info('Flashcards: Cards to update')
+      console.info(cardsToUpdate)
+      console.info('Flashcards: Cards to delete')
+      console.info(cardsToDelete)
       if (cardsNotInAnki) {
-        console.info("Flashcards: Cards not in Anki (maybe deleted)");
+        console.info('Flashcards: Cards not in Anki (maybe deleted)')
         for (const card of cardsNotInAnki) {
-          this.notifications.push(
-            `Error: Card with ID ${card.id} is not in Anki!`
-          );
+          this.notifications.push(`Error: Card with ID ${card.id} is not in Anki!`)
         }
       }
-      console.info(cardsNotInAnki);
+      console.info(cardsNotInAnki)
 
-      this.insertMedias(cards, sourcePath);
-      await this.deleteCardsOnAnki(cardsToDelete, ankiBlocks);
-      await this.updateCardsOnAnki(cardsToUpdate);
-      await this.insertCardsOnAnki(cardsToCreate);
+      this.insertMedias(cards, sourcePath)
+      await this.deleteCardsOnAnki(cardsToDelete, ankiBlocks)
+      await this.updateCardsOnAnki(cardsToUpdate)
+      await this.insertCardsOnAnki(cardsToCreate)
 
       // Update decks if needed
-      const deckNeedToBeChanged = await this.deckNeedToBeChanged(
-        cardIds,
-        deckName
-      );
+      const deckNeedToBeChanged = await this.deckNeedToBeChanged(cardIds, deckName)
       if (deckNeedToBeChanged) {
         try {
-          this.anki.changeDeck(cardIds, deckName);
-          this.notifications.push("Cards moved in new deck");
+          this.anki.changeDeck(cardIds, deckName)
+          this.notifications.push('Cards moved in new deck')
         } catch {
-          return ["Error: Could not update deck the file."];
+          return ['Error: Could not update deck the file.']
         }
       }
 
       // Update file
       if (this.updateFile) {
         try {
-          this.app.vault.modify(activeFile, this.file);
+          this.app.vault.modify(activeFile, this.file)
         } catch (err) {
-          Error("Could not update the file.");
-          return ["Error: Could not update the file."];
+          Error('Could not update the file.')
+          return ['Error: Could not update the file.']
         }
       }
 
-      this.updateFrontmatter(frontmatter, deckName);
+      this.updateFrontmatter(frontmatter, deckName)
 
       if (!this.notifications.length) {
-        this.notifications.push("Nothing to do. Everything is up to date");
+        this.notifications.push('Nothing to do. Everything is up to date')
       }
-      return this.notifications;
+      return this.notifications
     } catch (err) {
-      console.error(err);
-      Error("Something went wrong");
-          return ["Error: Something went wrong"];
+      console.error(err)
+      Error('Something went wrong')
+      return ['Error: Something went wrong']
     }
   }
 
@@ -160,11 +135,11 @@ export class CardsService {
     try {
       // Currently the media are created for every run, this is not a problem since Anki APIs overwrite the file
       // A more efficient way would be to keep track of the medias saved
-      await this.generateMediaLinks(cards, sourcePath);
-      await this.anki.storeMediaFiles(cards);
+      await this.generateMediaLinks(cards, sourcePath)
+      await this.anki.storeMediaFiles(cards)
     } catch (err) {
-      console.error(err);
-      Error("Error: Could not upload medias");
+      console.error(err)
+      Error('Error: Could not upload medias')
     }
   }
 
@@ -174,15 +149,12 @@ export class CardsService {
 
       for (const card of cards) {
         for (const media of card.mediaNames) {
-          const image = this.app.metadataCache.getFirstLinkpathDest(
-            decodeURIComponent(media),
-            sourcePath
-          );
+          const image = this.app.metadataCache.getFirstLinkpathDest(decodeURIComponent(media), sourcePath)
           try {
-            const binaryMedia = await this.app.vault.readBinary(image!);
-            card.mediaBase64Encoded.push(arrayBufferToBase64(binaryMedia));
+            const binaryMedia = await this.app.vault.readBinary(image!)
+            card.mediaBase64Encoded.push(arrayBufferToBase64(binaryMedia))
           } catch (err) {
-            Error("Error: Could not read media");
+            Error('Error: Could not read media')
           }
         }
       }
@@ -191,48 +163,43 @@ export class CardsService {
 
   private async insertCardsOnAnki(cardsToCreate: Card[]): Promise<number> {
     if (cardsToCreate.length) {
-      let insertedCards = 0;
+      let insertedCards = 0
       try {
-        const ids = await this.anki.addCards(cardsToCreate);
+        const ids = await this.anki.addCards(cardsToCreate)
         // Add IDs from response to Flashcard[]
         ids.map((id: number, index: number) => {
-          cardsToCreate[index].id = id;
-        });
+          cardsToCreate[index].id = id
+        })
 
-        let total = 0;
+        let total = 0
         cardsToCreate.forEach((card) => {
           if (card.id === null) {
-            new Notice(
-              `Error, could not add: '${card.initialContent}'`,
-              noticeTimeout
-            );
+            new Notice(`Error, could not add: '${card.initialContent}'`, noticeTimeout)
           } else {
-            card.reversed ? (insertedCards += 2) : insertedCards++;
+            card.reversed ? (insertedCards += 2) : insertedCards++
           }
-          card.reversed ? (total += 2) : total++;
-        });
+          card.reversed ? (total += 2) : total++
+        })
 
-        this.writeAnkiBlocks(cardsToCreate);
+        this.writeAnkiBlocks(cardsToCreate)
 
-        this.notifications.push(
-          `Inserted successfully ${insertedCards}/${total} cards.`
-        );
-        return insertedCards;
+        this.notifications.push(`Inserted successfully ${insertedCards}/${total} cards.`)
+        return insertedCards
       } catch (err) {
-        console.error(err);
-        Error("Error: Could not write cards on Anki");
-        return 0;
+        console.error(err)
+        Error('Error: Could not write cards on Anki')
+        return 0
       }
     }
-    return 0;
+    return 0
   }
 
   private updateFrontmatter(frontmatter: FrontMatterCache, deckName: string) {
-    const activeFile = this.app.workspace.getActiveFile()!;
+    const activeFile = this.app.workspace.getActiveFile()!
 
     this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-      frontmatter["cards-deck"] = deckName;
-    });
+      frontmatter['cards-deck'] = deckName
+    })
   }
 
   private writeAnkiBlocks(cardsToCreate: Card[]) {
@@ -240,23 +207,20 @@ export class CardsService {
       // Card.id cannot be null, because if written already previously it has an ID,
       //   if it has been inserted it has an ID too
       if (card.id !== null && !card.inserted) {
-        let id = card.getIdFormat();
+        let id = card.getIdFormat()
         if (card instanceof Inlinecard) {
           if (this.settings.inlineID) {
-            id = " " + id;
+            id = ' ' + id
           } else {
-            id = "\n" + id;
+            id = '\n' + id
           }
         }
-        card.endOffset += this.totalOffset;
-        const offset = card.endOffset;
+        card.endOffset += this.totalOffset
+        const offset = card.endOffset
 
-        this.updateFile = true;
-        this.file =
-          this.file.substring(0, offset) +
-          id +
-          this.file.substring(offset, this.file.length + 1);
-        this.totalOffset += id.length;
+        this.updateFile = true
+        this.file = this.file.substring(0, offset) + id + this.file.substring(offset, this.file.length + 1)
+        this.totalOffset += id.length
       }
     }
   }
@@ -264,145 +228,134 @@ export class CardsService {
   private async updateCardsOnAnki(cards: Card[]): Promise<number> {
     if (cards.length) {
       try {
-        this.anki.updateCards(cards);
-        this.notifications.push(
-          `Updated successfully ${cards.length}/${cards.length} cards.`
-        );
+        this.anki.updateCards(cards)
+        this.notifications.push(`Updated successfully ${cards.length}/${cards.length} cards.`)
       } catch (err) {
-        console.error(err);
-        Error("Error: Could not update cards on Anki");
+        console.error(err)
+        Error('Error: Could not update cards on Anki')
       }
 
-      return cards.length;
+      return cards.length
     }
-    return 0;
+    return 0
   }
 
-  public async deleteCardsOnAnki(
-    cards: number[],
-    ankiBlocks: RegExpMatchArray[]
-  ): Promise<number> {
+  public async deleteCardsOnAnki(cards: number[], ankiBlocks: RegExpMatchArray[]): Promise<number> {
     if (cards.length) {
-      let deletedCards = 0;
+      let deletedCards = 0
       for (const block of ankiBlocks) {
-        const id = Number(block[1]);
+        const id = Number(block[1])
 
         // Deletion of cards that need to be deleted (i.e. blocks ID that don't have content)
         if (cards.includes(id)) {
           try {
-            this.anki.deleteCards(cards);
-            deletedCards++;
+            this.anki.deleteCards(cards)
+            deletedCards++
 
-            this.updateFile = true;
+            this.updateFile = true
             this.file =
-              this.file.substring(0, block["index"]!) +
-              this.file.substring(block["index"]! + block[0].length, this.file.length);
-            this.totalOffset -= block[0].length;
-            this.notifications.push(
-              `Deleted successfully ${deletedCards}/${cards.length} cards.`
-            );
+              this.file.substring(0, block['index']!) +
+              this.file.substring(block['index']! + block[0].length, this.file.length)
+            this.totalOffset -= block[0].length
+            this.notifications.push(`Deleted successfully ${deletedCards}/${cards.length} cards.`)
           } catch (err) {
-            console.error(err);
-            Error("Error, could not delete the card from Anki");
-            return 0;
+            console.error(err)
+            Error('Error, could not delete the card from Anki')
+            return 0
           }
         }
       }
 
-      return deletedCards;
+      return deletedCards
     }
-    return 0;
+    return 0
   }
 
   private getAnkiIDs(blocks: RegExpMatchArray[]): number[] {
-    const IDs: number[] = [];
+    const IDs: number[] = []
     for (const b of blocks) {
-      IDs.push(Number(b[1]));
+      IDs.push(Number(b[1]))
     }
 
-    return IDs;
+    return IDs
   }
 
   public filterByUpdate(ankiCards: any, generatedCards: Card[]) {
-    let cardsToCreate: Card[] = [];
-    const cardsToUpdate: Card[] = [];
-    const cardsNotInAnki: Card[] = [];
+    let cardsToCreate: Card[] = []
+    const cardsToUpdate: Card[] = []
+    const cardsNotInAnki: Card[] = []
 
     if (ankiCards) {
       for (const flashcard of generatedCards) {
         // Inserted means that anki blocks are available, that means that the card should
         // 	(the user can always delete it) be in Anki
-        let ankiCard = undefined;
+        let ankiCard = undefined
         if (flashcard.inserted) {
-          ankiCard = ankiCards.filter(
-            (card: any) => Number(card.noteId) === flashcard.id
-          )[0];
+          ankiCard = ankiCards.filter((card: any) => Number(card.noteId) === flashcard.id)[0]
           if (!ankiCard) {
-            cardsNotInAnki.push(flashcard);
+            cardsNotInAnki.push(flashcard)
           } else if (!flashcard.match(ankiCard)) {
-            flashcard.oldTags = ankiCard.tags;
-            cardsToUpdate.push(flashcard);
+            flashcard.oldTags = ankiCard.tags
+            cardsToUpdate.push(flashcard)
           }
         } else {
-          cardsToCreate.push(flashcard);
+          cardsToCreate.push(flashcard)
         }
       }
     } else {
-      cardsToCreate = [...generatedCards];
+      cardsToCreate = [...generatedCards]
     }
 
-    return [cardsToCreate, cardsToUpdate, cardsNotInAnki];
+    return [cardsToCreate, cardsToUpdate, cardsNotInAnki]
   }
 
   public async deckNeedToBeChanged(cardsIds: number[], deckName: string) {
-    const cardsInfo = await this.anki.cardsInfo(cardsIds);
-    console.log("Flashcards: Cards info");
-    console.log(cardsInfo);
+    const cardsInfo = await this.anki.cardsInfo(cardsIds)
+    console.log('Flashcards: Cards info')
+    console.log(cardsInfo)
     if (cardsInfo.length !== 0) {
-      return cardsInfo[0].deckName !== deckName;
+      return cardsInfo[0].deckName !== deckName
     }
 
-    return false;
+    return false
   }
 
   public getCardsIds(ankiCards: any, generatedCards: Card[]): number[] {
-    let ids: number[] = [];
+    let ids: number[] = []
 
     if (ankiCards) {
       for (const flashcard of generatedCards) {
-        let ankiCard = undefined;
+        let ankiCard = undefined
         if (flashcard.inserted) {
-          ankiCard = ankiCards.filter(
-            (card: any) => Number(card.noteId) === flashcard.id
-          )[0];
+          ankiCard = ankiCards.filter((card: any) => Number(card.noteId) === flashcard.id)[0]
           if (ankiCard) {
-            ids = ids.concat(ankiCard.cards);
+            ids = ids.concat(ankiCard.cards)
           }
         }
       }
     }
 
-    return ids;
+    return ids
   }
 
   public parseGlobalTags(file: string): string[] {
-    let globalTags: string[] | null = [];
+    let globalTags: string[] | null = []
 
-    const tags = file.match(/(?:cards-)?tags: ?(.*)/im);
-    globalTags = tags ? tags[1].match(this.regex.globalTagsSplitter) : [];
+    const tags = file.match(/(?:cards-)?tags: ?(.*)/im)
+    globalTags = tags ? tags[1].match(this.regex.globalTagsSplitter) : []
 
     if (globalTags) {
       for (let i = 0; i < globalTags.length; i++) {
-        globalTags[i] = globalTags[i].replace("#", "");
-        globalTags[i] = globalTags[i].replace(/\//g, "::");
-        globalTags[i] = globalTags[i].replace(/\[\[(.*)\]\]/, "$1");
-        globalTags[i] = globalTags[i].trim();
-        globalTags[i] = globalTags[i].replace(/ /g, "-");
+        globalTags[i] = globalTags[i].replace('#', '')
+        globalTags[i] = globalTags[i].replace(/\//g, '::')
+        globalTags[i] = globalTags[i].replace(/\[\[(.*)\]\]/, '$1')
+        globalTags[i] = globalTags[i].trim()
+        globalTags[i] = globalTags[i].replace(/ /g, '-')
       }
 
-      return globalTags;
+      return globalTags
     }
 
-    return [];
+    return []
   }
 }
