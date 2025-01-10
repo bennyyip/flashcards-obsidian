@@ -1,5 +1,5 @@
 ---
-cards-deck: Inline
+cards-deck: TEST::Inline
 ---
 
 # Inline

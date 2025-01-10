@@ -50,18 +50,18 @@ export class CardsService {
     this.notifications = [];
     const filePath = activeFile.basename;
     const sourcePath = activeFile.path;
-    const fileCachedMetadata = this.app.metadataCache.getFileCache(activeFile);
+    const fileCachedMetadata = this.app.metadataCache.getFileCache(activeFile)!;
     const vaultName = this.app.vault.getName();
-    let globalTags: string[] = undefined;
+    let globalTags: string[] = [];
 
     // Parse frontmatter
-    const frontmatter = fileCachedMetadata.frontmatter;
+    const frontmatter = fileCachedMetadata.frontmatter!;
     let deckName = "";
-    if (frontmatter["cards-deck"]) {
+    if (frontmatter && frontmatter["cards-deck"]) {
       deckName = frontmatter["cards-deck"];
-    } else if (this.settings.folderBasedDeck && activeFile.parent.path !== "/") {
+    } else if (this.settings.folderBasedDeck && activeFile.parent?.path !== "/") {
       // If the current file is in the path "programming/java/strings.md" then the deck name is "programming::java"
-      deckName = activeFile.parent.path.split("/").join("::");
+      deckName = activeFile.parent!.path.split("/").join("::");
     } else {
       deckName = this.settings.deck;
     }
@@ -152,6 +152,7 @@ export class CardsService {
     } catch (err) {
       console.error(err);
       Error("Something went wrong");
+          return ["Error: Something went wrong"];
     }
   }
 
@@ -178,7 +179,7 @@ export class CardsService {
             sourcePath
           );
           try {
-            const binaryMedia = await this.app.vault.readBinary(image);
+            const binaryMedia = await this.app.vault.readBinary(image!);
             card.mediaBase64Encoded.push(arrayBufferToBase64(binaryMedia));
           } catch (err) {
             Error("Error: Could not read media");
@@ -220,12 +221,14 @@ export class CardsService {
       } catch (err) {
         console.error(err);
         Error("Error: Could not write cards on Anki");
+        return 0;
       }
     }
+    return 0;
   }
 
   private updateFrontmatter(frontmatter: FrontMatterCache, deckName: string) {
-    const activeFile = this.app.workspace.getActiveFile();
+    const activeFile = this.app.workspace.getActiveFile()!;
 
     this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
       frontmatter["cards-deck"] = deckName;
@@ -272,6 +275,7 @@ export class CardsService {
 
       return cards.length;
     }
+    return 0;
   }
 
   public async deleteCardsOnAnki(
@@ -291,11 +295,8 @@ export class CardsService {
 
             this.updateFile = true;
             this.file =
-              this.file.substring(0, block["index"]) +
-              this.file.substring(
-                block["index"] + block[0].length,
-                this.file.length
-              );
+              this.file.substring(0, block["index"]!) +
+              this.file.substring(block["index"]! + block[0].length, this.file.length);
             this.totalOffset -= block[0].length;
             this.notifications.push(
               `Deleted successfully ${deletedCards}/${cards.length} cards.`
@@ -303,12 +304,14 @@ export class CardsService {
           } catch (err) {
             console.error(err);
             Error("Error, could not delete the card from Anki");
+            return 0;
           }
         }
       }
 
       return deletedCards;
     }
+    return 0;
   }
 
   private getAnkiIDs(blocks: RegExpMatchArray[]): number[] {
@@ -383,7 +386,7 @@ export class CardsService {
   }
 
   public parseGlobalTags(file: string): string[] {
-    let globalTags: string[] = [];
+    let globalTags: string[] | null = [];
 
     const tags = file.match(/(?:cards-)?tags: ?(.*)/im);
     globalTags = tags ? tags[1].match(this.regex.globalTagsSplitter) : [];

@@ -1,5 +1,5 @@
 ---
-cards-deck: Cloze
+cards-deck: TEST::Cloze
 ---
 
 # Cloze

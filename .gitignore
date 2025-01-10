@@ -31,3 +31,8 @@ move.sh
 
 # Test-vault
 docs/test-vault/.obsidian/workspace
+docs/test-vault/.obsidian/workspace.json
+
+
+.temp
+coverage/

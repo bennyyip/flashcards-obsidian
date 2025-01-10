@@ -293,14 +293,7 @@ export class Parser {
     return cards;
   }
 
-  private generateInlineCards(
-    file: string,
-    headings: any,
-    deck: string,
-    vault: string,
-    note: string,
-    globalTags: string[] = []
-  ) {
+  private generateInlineCards( file: string, headings: any, deck: string, vault: string, note: string, globalTags: string[] = []): Inlinecard[] {
     const contextAware = this.settings.contextAwareMode;
     const cards: Inlinecard[] = [];
     const matches = [...file.matchAll(this.regex.cardsInlineStyle)];

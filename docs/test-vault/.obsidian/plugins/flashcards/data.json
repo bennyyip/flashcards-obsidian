@@ -1,13 +1,13 @@
 {
-  "contextAwareMode": true,
-  "sourceSupport": false,
-  "codeHighlightSupport": false,
+  "contextAwareMode": false,
+  "sourceSupport": true,
+  "codeHighlightSupport": true,
   "inlineID": false,
   "contextSeparator": " > ",
-  "deck": "Default",
+  "deck": "TEST",
   "flashcardsTag": "card",
   "inlineSeparator": "::",
   "inlineSeparatorReverse": ":::",
-  "defaultAnkiTag": "obsidian",
+  "defaultAnkiTag": "obsidian-test",
   "ankiConnectPermission": false
 }
