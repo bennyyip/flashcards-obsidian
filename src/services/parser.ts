@@ -153,7 +153,7 @@ export class Parser {
       const initialOffset = match.index
       const endingLine = match.index + match[0].length
       const tags: string[] = this.parseTags(match[4], globalTags)
-      const id: number = match[5] ? Number(match[5]) : -1
+      const id: number = match[5] ? Number.parseInt(match[5]) : -1
       const inserted: boolean = id > 0
       const fields: any = { Prompt: prompt }
       if (this.settings.sourceSupport) {
@@ -246,7 +246,7 @@ export class Parser {
       const initialOffset = match.index
       const endingLine = match.index + match[0].length
       const tags: string[] = this.parseTags(match[4], globalTags)
-      const id: number = match[5] ? Number(match[5]) : -1
+      const id: number = match[5] ? Number.parseInt(match[5]) : -1
       const inserted: boolean = id > 0
       const fields: any = { Text: clozeText, Extra: '' }
       if (this.settings.sourceSupport) {
@@ -312,7 +312,7 @@ export class Parser {
       const initialOffset = match.index
       const endingLine = match.index + match[0].length
       const tags: string[] = this.parseTags(match[5], globalTags)
-      const id: number = match[6] ? Number(match[6]) : -1
+      const id: number = match[6] ? Number.parseInt(match[6]) : -1
       const inserted: boolean = id > 0
       const fields: any = { Front: question, Back: answer }
       if (this.settings.sourceSupport) {
@@ -378,7 +378,7 @@ export class Parser {
       const initialOffset = match.index
       const endingLine = match.index + match[0].length
       const tags: string[] = this.parseTags(match[4], globalTags)
-      const id: number = match[6] ? Number(match[6]) : -1
+      const id: number = match[6] ? Number.parseInt(match[6]) : -1
       const inserted: boolean = id > 0
       const fields: any = { Front: question, Back: answer }
       if (this.settings.sourceSupport) {
@@ -417,7 +417,7 @@ export class Parser {
   public getCardsToDelete(file: string): number[] {
     // Find block IDs with no content above it
     return [...file.matchAll(this.regex.cardsToDelete)].map((match) => {
-      return Number(match[1])
+      return Number.parseInt(match[1])
     })
   }
 

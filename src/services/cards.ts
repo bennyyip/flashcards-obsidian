@@ -244,7 +244,7 @@ export class CardsService {
     if (cards.length) {
       let deletedCards = 0
       for (const block of ankiBlocks) {
-        const id = Number(block[1])
+        const id = Number.parseInt(block[1])
 
         // Deletion of cards that need to be deleted (i.e. blocks ID that don't have content)
         if (cards.includes(id)) {
@@ -274,7 +274,7 @@ export class CardsService {
   private getAnkiIDs(blocks: RegExpMatchArray[]): number[] {
     const IDs: number[] = []
     for (const b of blocks) {
-      IDs.push(Number(b[1]))
+      IDs.push(Number.parseInt(b[1]))
     }
 
     return IDs
@@ -291,7 +291,7 @@ export class CardsService {
         // 	(the user can always delete it) be in Anki
         let ankiCard = undefined
         if (flashcard.inserted) {
-          ankiCard = ankiCards.filter((card: any) => Number(card.noteId) === flashcard.id)[0]
+          ankiCard = ankiCards.filter((card: any) => Number.parseInt(card.noteId) === flashcard.id)[0]
           if (!ankiCard) {
             cardsNotInAnki.push(flashcard)
           } else if (!flashcard.match(ankiCard)) {
@@ -327,7 +327,7 @@ export class CardsService {
       for (const flashcard of generatedCards) {
         let ankiCard = undefined
         if (flashcard.inserted) {
-          ankiCard = ankiCards.filter((card: any) => Number(card.noteId) === flashcard.id)[0]
+          ankiCard = ankiCards.filter((card: any) => Number.parseInt(card.noteId) === flashcard.id)[0]
           if (ankiCard) {
             ids = ids.concat(ankiCard.cards)
           }

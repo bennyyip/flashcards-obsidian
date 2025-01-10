@@ -6,8 +6,8 @@
   "contextSeparator": " > ",
   "deck": "TEST",
   "flashcardsTag": "card",
-  "inlineSeparator": "::",
-  "inlineSeparatorReverse": ":::",
+  "inlineSeparator": "@@",
+  "inlineSeparatorReverse": "@@@",
   "defaultAnkiTag": "obsidian-test",
   "ankiConnectPermission": false
 }
